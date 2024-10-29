@@ -21,7 +21,6 @@ The data for this project is sourced from the Kaggle dataset:
 ## Schema
 
 ```sql
-DROP TABLE IF EXISTS netflix;
 CREATE TABLE netflix
 (
     show_id      VARCHAR(5),
@@ -48,7 +47,7 @@ SELECT
     type,
     COUNT(*)
 FROM netflix
-GROUP BY 1;
+GROUP BY type;
 ```
 
 **Objective:** Determine the distribution of content types on Netflix.
@@ -56,37 +55,32 @@ GROUP BY 1;
 ### 2. Find the Most Common Rating for Movies and TV Shows
 
 ```sql
-WITH RatingCounts AS (
-    SELECT 
-        type,
-        rating,
-        COUNT(*) AS rating_count
-    FROM netflix
-    GROUP BY type, rating
-),
-RankedRatings AS (
-    SELECT 
-        type,
-        rating,
-        rating_count,
-        RANK() OVER (PARTITION BY type ORDER BY rating_count DESC) AS rank
-    FROM RatingCounts
-)
 SELECT 
-    type,
-    rating AS most_frequent_rating
-FROM RankedRatings
-WHERE rank = 1;
+	type, 
+	rating
+FROM
+(
+	SELECT 
+		type,
+		rating,
+		COUNT(*),
+		RANK() OVER(PARTITION BY type ORDER BY COUNT(*) DESC) as ranking
+	FROM netflix
+	GROUP BY 1,2
+) as T1
+WHERE ranking = 1
 ```
 
 **Objective:** Identify the most frequently occurring rating for each type of content.
 
-### 3. List All Movies Released in a Specific Year (e.g., 2020)
+### 3. List All Movies Released in a Specific Year (e.g., 2014)
 
 ```sql
-SELECT * 
+SELECT
+	title,
+	release_year
 FROM netflix
-WHERE release_year = 2020;
+WHERE type='Movie' and release_year=2014
 ```
 
 **Objective:** Retrieve all movies released in a specific year.
@@ -94,24 +88,19 @@ WHERE release_year = 2020;
 ### 4. Find the Top 5 Countries with the Most Content on Netflix
 
 ```sql
-SELECT * 
-FROM
-(
-    SELECT 
-        UNNEST(STRING_TO_ARRAY(country, ',')) AS country,
-        COUNT(*) AS total_content
-    FROM netflix
-    GROUP BY 1
-) AS t1
-WHERE country IS NOT NULL
+SELECT 
+	TRIM(UNNEST(STRING_TO_ARRAY(country, ','))) as new_country,
+	COUNT(show_id) as total_content
+FROM netflix
+GROUP BY new_country
 ORDER BY total_content DESC
-LIMIT 5;
+LIMIT 5
 ```
 
-**Objective:** Identify the top 5 countries with the highest number of content items.
+**Objective:** Identify the top 5 countries with the most content items.
 
 ### 5. Identify the Longest Movie
-```
+```sql
 SELECT * 
 FROM 
 (
@@ -141,13 +130,8 @@ WHERE TO_DATE(date_added, 'Month DD, YYYY') >= CURRENT_DATE - INTERVAL '5 years'
 
 ```sql
 SELECT *
-FROM (
-    SELECT 
-        *,
-        UNNEST(STRING_TO_ARRAY(director, ',')) AS director_name
-    FROM netflix
-) AS t
-WHERE director_name = 'Rajiv Chilaka';
+FROM netflix
+WHERE director ILIKE '%Rajiv Chilaka%'
 ```
 
 **Objective:** List all content directed by 'Rajiv Chilaka'.
@@ -167,10 +151,11 @@ WHERE type = 'TV Show'
 
 ```sql
 SELECT 
-    UNNEST(STRING_TO_ARRAY(listed_in, ',')) AS genre,
-    COUNT(*) AS total_content
+	UNNEST(STRING_TO_ARRAY(listed_in, ',')) AS genre,
+	COUNT(show_id) as total_content,
+	ARRAY_AGG(title) AS titles
 FROM netflix
-GROUP BY 1;
+GROUP BY genre
 ```
 
 **Objective:** Count the number of content items in each genre.
@@ -199,9 +184,9 @@ LIMIT 5;
 ### 11. List All Movies that are Documentaries
 
 ```sql
-SELECT * 
+SELECT type, title, listed_in
 FROM netflix
-WHERE listed_in LIKE '%Documentaries';
+WHERE type='Movie' AND listed_in ILIKE '%Documentaries%';
 ```
 
 **Objective:** Retrieve all movies classified as documentaries.
@@ -234,7 +219,7 @@ SELECT
     UNNEST(STRING_TO_ARRAY(casts, ',')) AS actor,
     COUNT(*)
 FROM netflix
-WHERE country = 'India'
+WHERE country ILIKE '%india%'
 GROUP BY actor
 ORDER BY COUNT(*) DESC
 LIMIT 10;
@@ -245,18 +230,24 @@ LIMIT 10;
 ### 15. Categorize Content Based on the Presence of 'Kill' and 'Violence' Keywords
 
 ```sql
+WITH new_table
+AS
+(
 SELECT 
-    category,
-    COUNT(*) AS content_count
-FROM (
-    SELECT 
-        CASE 
-            WHEN description ILIKE '%kill%' OR description ILIKE '%violence%' THEN 'Bad'
-            ELSE 'Good'
-        END AS category
-    FROM netflix
-) AS categorized_content
-GROUP BY category;
+*, 
+	CASE 
+	WHEN 
+		description ILIKE '%kill%' or 
+		description ILIKE '%violance%' THEN 'Bad_Content'
+		ELSE 'Good_Content'
+ 	END category
+FROM netflix
+)
+SELECT
+	category, 
+	COUNT(*) AS total_content
+FROM new_table
+GROUP BY 1
 ```
 
 **Objective:** Categorize content as 'Bad' if it contains 'kill' or 'violence' and 'Good' otherwise. Count the number of items in each category.
@@ -269,20 +260,5 @@ GROUP BY category;
 - **Content Categorization:** Categorizing content based on specific keywords helps in understanding the nature of content available on Netflix.
 
 This analysis provides a comprehensive view of Netflix's content and can help inform content strategy and decision-making.
-
-
-
-## Author - Zero Analyst
-
-This project is part of my portfolio, showcasing the SQL skills essential for data analyst roles. If you have any questions, feedback, or would like to collaborate, feel free to get in touch!
-
-### Stay Updated and Join the Community
-
-For more content on SQL, data analysis, and other data-related topics, make sure to follow me on social media and join our community:
-
-- **YouTube**: [Subscribe to my channel for tutorials and insights](https://www.youtube.com/@zero_analyst)
-- **Instagram**: [Follow me for daily tips and updates](https://www.instagram.com/zero_analyst/)
-- **LinkedIn**: [Connect with me professionally](https://www.linkedin.com/in/najirr)
-- **Discord**: [Join our community to learn and grow together](https://discord.gg/36h5f2Z5PK)
 
 Thank you for your support, and I look forward to connecting with you!
