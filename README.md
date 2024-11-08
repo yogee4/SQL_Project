@@ -1,4 +1,4 @@
-# Netflix_SQL_Project on Movies and TV Shows Data Analysis
+# SQL Project: Netflix Movies and TV Shows Data Analysis
 
 ![](https://github.com/najirh/netflix_sql_project/blob/main/logo.png)
 
